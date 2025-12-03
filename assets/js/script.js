@@ -168,13 +168,31 @@ jQuery(document).ready(function ($) {
     $msg.removeClass("success error").addClass(type).text(message).fadeIn();
   }
 
-  // Handle Google Sign In button click (optional)
+  // Handle Google Sign In button click
   $("#sel-google-login").on("click", function (e) {
     e.preventDefault();
-    // You can add Google OAuth integration here
+
     if (sel_ajax.google_enabled === "1" && sel_ajax.google_client_id) {
-      // Implement Google OAuth flow
-      alert("Google Sign In integration coming soon!");
+      // Build Google OAuth URL
+      var client_id = sel_ajax.google_client_id;
+      var redirect_uri = sel_ajax.ajax_url + "?action=sel_google_callback";
+      var scope = "email profile";
+      var response_type = "code";
+
+      var google_auth_url =
+        "https://accounts.google.com/o/oauth2/v2/auth?" +
+        "client_id=" +
+        encodeURIComponent(client_id) +
+        "&redirect_uri=" +
+        encodeURIComponent(redirect_uri) +
+        "&scope=" +
+        encodeURIComponent(scope) +
+        "&response_type=" +
+        response_type +
+        "&access_type=offline";
+
+      // Redirect to Google OAuth
+      window.location.href = google_auth_url;
     } else {
       alert("Google Sign In is not configured. Please contact administrator.");
     }

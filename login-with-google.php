@@ -84,7 +84,14 @@ function sel_handle_login() {
         ));
     }
     
-    // Check if user has password (not a Google-only user)
+    // If no password provided yet, ask for password
+    if (empty($password)) {
+        wp_send_json_error(array(
+            'message' => 'Please enter your password.',
+            'needs_password' => true
+        ));
+    }
+    
     // Try to authenticate with password
     $credentials = array(
         'user_login'    => $user->user_login,
@@ -176,6 +183,114 @@ function sel_handle_signup() {
 }
 add_action('wp_ajax_nopriv_sel_signup', 'sel_handle_signup');
 add_action('wp_ajax_sel_signup', 'sel_handle_signup');
+
+/**
+ * Handle Google OAuth Callback
+ */
+function sel_handle_google_callback() {
+    if (!isset($_GET['code'])) {
+        wp_die('Invalid request');
+    }
+    
+    $code = sanitize_text_field($_GET['code']);
+    $client_id = get_option('sel_google_client_id');
+    $client_secret = get_option('sel_google_client_secret');
+    $redirect_uri = admin_url('admin-ajax.php?action=sel_google_callback');
+    
+    // Exchange code for access token
+    $token_url = 'https://oauth2.googleapis.com/token';
+    $token_data = array(
+        'code' => $code,
+        'client_id' => $client_id,
+        'client_secret' => $client_secret,
+        'redirect_uri' => $redirect_uri,
+        'grant_type' => 'authorization_code'
+    );
+    
+    $token_response = wp_remote_post($token_url, array(
+        'body' => $token_data
+    ));
+    
+    if (is_wp_error($token_response)) {
+        wp_die('Failed to authenticate with Google');
+    }
+    
+    $token_body = json_decode(wp_remote_retrieve_body($token_response), true);
+    
+    if (!isset($token_body['access_token'])) {
+        wp_die('Failed to get access token');
+    }
+    
+    // Get user info from Google
+    $userinfo_url = 'https://www.googleapis.com/oauth2/v2/userinfo';
+    $userinfo_response = wp_remote_get($userinfo_url, array(
+        'headers' => array(
+            'Authorization' => 'Bearer ' . $token_body['access_token']
+        )
+    ));
+    
+    if (is_wp_error($userinfo_response)) {
+        wp_die('Failed to get user info from Google');
+    }
+    
+    $userinfo = json_decode(wp_remote_retrieve_body($userinfo_response), true);
+    
+    if (!isset($userinfo['email'])) {
+        wp_die('Failed to get email from Google');
+    }
+    
+    // Check if user exists
+    $user = get_user_by('email', $userinfo['email']);
+    
+    if (!$user) {
+        // Create new user
+        $username = sanitize_user(current(explode('@', $userinfo['email'])));
+        $random_password = wp_generate_password(20, true, true);
+        
+        // Make username unique
+        $base_username = $username;
+        $counter = 1;
+        while (username_exists($username)) {
+            $username = $base_username . $counter;
+            $counter++;
+        }
+        
+        $user_id = wp_create_user($username, $random_password, $userinfo['email']);
+        
+        if (is_wp_error($user_id)) {
+            wp_die('Failed to create user account');
+        }
+        
+        // Update user with Google info
+        $display_name = isset($userinfo['name']) ? $userinfo['name'] : $username;
+        wp_update_user(array(
+            'ID' => $user_id,
+            'display_name' => $display_name,
+            'first_name' => isset($userinfo['given_name']) ? $userinfo['given_name'] : '',
+            'last_name' => isset($userinfo['family_name']) ? $userinfo['family_name'] : ''
+        ));
+        
+        // Store Google ID
+        update_user_meta($user_id, 'google_id', $userinfo['id']);
+        
+        if (isset($userinfo['picture'])) {
+            update_user_meta($user_id, 'google_picture', $userinfo['picture']);
+        }
+        
+        $user = get_user_by('id', $user_id);
+    }
+    
+    // Log the user in
+    wp_clear_auth_cookie();
+    wp_set_current_user($user->ID);
+    wp_set_auth_cookie($user->ID, true);
+    
+    // Redirect to my-account page
+    wp_redirect('https://rideonbd.com/my-account/');
+    exit;
+}
+add_action('wp_ajax_nopriv_sel_google_callback', 'sel_handle_google_callback');
+add_action('wp_ajax_sel_google_callback', 'sel_handle_google_callback');
 
 /**
  * Shortcode to display login form or user name
