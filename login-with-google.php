@@ -1,14 +1,14 @@
 <?php
 /**
- * Plugin Name: Login with Google
+ * Plugin Name: Simple Email Login
  * Plugin URI: https://yourwebsite.com
- * Description: Simple email-based login system for WordPress. Users can login with just their email address.
+ * Description: Email-based login system with Google OAuth integration. Users can login with their email or Google account.
  * Version: 1.0.0
  * Author: Mushfikur Rahman
  * Author URI: https://yourwebsite.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: login-with-google
+ * Text Domain: simple-email-login
  */
 
 // Exit if accessed directly
@@ -17,49 +17,54 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('LWG_VERSION', '1.0.0');
-define('LWG_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('LWG_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('SEL_VERSION', '1.0.0');
+define('SEL_PLUGIN_DIR', plugin_dir_path(__FILE__));
+define('SEL_PLUGIN_URL', plugin_dir_url(__FILE__));
 
 /**
  * Activation Hook
  */
-function lwg_activate() {
-    // Add any activation tasks here
+function sel_activate() {
+    // Add default options
+    add_option('sel_google_client_id', '');
+    add_option('sel_google_client_secret', '');
+    add_option('sel_google_enabled', '0');
     flush_rewrite_rules();
 }
-register_activation_hook(__FILE__, 'lwg_activate');
+register_activation_hook(__FILE__, 'sel_activate');
 
 /**
  * Deactivation Hook
  */
-function lwg_deactivate() {
+function sel_deactivate() {
     // Add any deactivation tasks here
     flush_rewrite_rules();
 }
-register_deactivation_hook(__FILE__, 'lwg_deactivate');
+register_deactivation_hook(__FILE__, 'sel_deactivate');
 
 /**
  * Enqueue styles and scripts
  */
-function lwg_enqueue_scripts() {
-    wp_enqueue_style('lwg-styles', LWG_PLUGIN_URL . 'assets/css/style.css', array(), LWG_VERSION);
-    wp_enqueue_script('lwg-script', LWG_PLUGIN_URL . 'assets/js/script.js', array('jquery'), LWG_VERSION, true);
+function sel_enqueue_scripts() {
+    wp_enqueue_style('sel-styles', SEL_PLUGIN_URL . 'assets/css/style.css', array(), SEL_VERSION);
+    wp_enqueue_script('sel-script', SEL_PLUGIN_URL . 'assets/js/script.js', array('jquery'), SEL_VERSION, true);
     
     // Localize script for AJAX
-    wp_localize_script('lwg-script', 'lwg_ajax', array(
+    wp_localize_script('sel-script', 'sel_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('lwg_login_nonce')
+        'nonce' => wp_create_nonce('sel_login_nonce'),
+        'google_enabled' => get_option('sel_google_enabled', '0'),
+        'google_client_id' => get_option('sel_google_client_id', '')
     ));
 }
-add_action('wp_enqueue_scripts', 'lwg_enqueue_scripts');
+add_action('wp_enqueue_scripts', 'sel_enqueue_scripts');
 
 /**
  * Handle AJAX Login Request
  */
-function lwg_handle_login() {
+function sel_handle_login() {
     // Verify nonce
-    check_ajax_referer('lwg_login_nonce', 'nonce');
+    check_ajax_referer('sel_login_nonce', 'nonce');
     
     $email = sanitize_email($_POST['email']);
     
@@ -109,45 +114,47 @@ function lwg_handle_login() {
         'user_name' => $user->display_name
     ));
 }
-add_action('wp_ajax_nopriv_lwg_login', 'lwg_handle_login');
-add_action('wp_ajax_lwg_login', 'lwg_handle_login');
+add_action('wp_ajax_nopriv_sel_login', 'sel_handle_login');
+add_action('wp_ajax_sel_login', 'sel_handle_login');
 
 /**
  * Shortcode to display login form or user name
  */
-function lwg_login_shortcode() {
+function sel_login_shortcode() {
     ob_start();
     
     if (is_user_logged_in()) {
         // User is logged in - show their name
         $current_user = wp_get_current_user();
         ?>
-        <div class="lwg-user-info">
-            <span class="lwg-welcome-message">Welcome, <?php echo esc_html($current_user->display_name); ?></span>
+        <div class="sel-user-info">
+            <span class="sel-welcome-message">Welcome, <?php echo esc_html($current_user->display_name); ?></span>
         </div>
         <?php
     } else {
         // User is not logged in - show login form
+        $google_enabled = get_option('sel_google_enabled', '0');
         ?>
-        <div class="lwg-login-container">
-            <div class="lwg-login-form">
-                <h2 class="lwg-title">I ALREADY HAVE AN ACCOUNT</h2>
-                <form id="lwg-email-login-form">
-                    <div class="lwg-form-group">
-                        <label for="lwg-email">Please enter your phone number or email</label>
-                        <input type="email" id="lwg-email" name="email" required placeholder="">
+        <div class="sel-login-container">
+            <div class="sel-login-form">
+                <h2 class="sel-title">I ALREADY HAVE AN ACCOUNT</h2>
+                <form id="sel-email-login-form">
+                    <div class="sel-form-group">
+                        <label for="sel-email">Please enter your phone number or email</label>
+                        <input type="email" id="sel-email" name="email" required placeholder="">
                     </div>
-                    <div class="lwg-forgot-password">
+                    <div class="sel-forgot-password">
                         <a href="<?php echo wp_lostpassword_url(); ?>">Forgot password?</a>
                     </div>
-                    <div class="lwg-button-group">
-                        <button type="button" class="lwg-btn lwg-btn-secondary">Create Account</button>
-                        <button type="submit" class="lwg-btn lwg-btn-primary">Next</button>
+                    <div class="sel-button-group">
+                        <button type="button" class="sel-btn sel-btn-secondary">Create Account</button>
+                        <button type="submit" class="sel-btn sel-btn-primary">Next</button>
                     </div>
-                    <div class="lwg-divider">
+                    <?php if ($google_enabled === '1') : ?>
+                    <div class="sel-divider">
                         <span>OR SIGN IN WITH</span>
                     </div>
-                    <button type="button" class="lwg-btn lwg-btn-google">
+                    <button type="button" class="sel-btn sel-btn-google" id="sel-google-login">
                         <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
                             <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#4285F4"/>
                             <path d="M9.003 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9.003 18z" fill="#34A853"/>
@@ -156,8 +163,9 @@ function lwg_login_shortcode() {
                         </svg>
                         GOOGLE
                     </button>
+                    <?php endif; ?>
                 </form>
-                <div class="lwg-message"></div>
+                <div class="sel-message"></div>
             </div>
         </div>
         <?php
@@ -165,4 +173,87 @@ function lwg_login_shortcode() {
     
     return ob_get_clean();
 }
-add_shortcode('login_with_google', 'lwg_login_shortcode');
+add_shortcode('simple_email_login', 'sel_login_shortcode');
+
+/**
+ * Add admin menu
+ */
+function sel_add_admin_menu() {
+    add_options_page(
+        'Simple Email Login Settings',
+        'Simple Email Login',
+        'manage_options',
+        'simple-email-login',
+        'sel_settings_page'
+    );
+}
+add_action('admin_menu', 'sel_add_admin_menu');
+
+/**
+ * Register settings
+ */
+function sel_register_settings() {
+    register_setting('sel_settings_group', 'sel_google_client_id');
+    register_setting('sel_settings_group', 'sel_google_client_secret');
+    register_setting('sel_settings_group', 'sel_google_enabled');
+}
+add_action('admin_init', 'sel_register_settings');
+
+/**
+ * Settings page HTML
+ */
+function sel_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1>Simple Email Login Settings</h1>
+        
+        <form method="post" action="options.php">
+            <?php settings_fields('sel_settings_group'); ?>
+            <?php do_settings_sections('sel_settings_group'); ?>
+            
+            <table class="form-table">
+                <tr valign="top">
+                    <th scope="row">Enable Google Login</th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="sel_google_enabled" value="1" <?php checked(get_option('sel_google_enabled'), '1'); ?> />
+                            Enable Google OAuth Login
+                        </label>
+                    </td>
+                </tr>
+                
+                <tr valign="top">
+                    <th scope="row">Google Client ID</th>
+                    <td>
+                        <input type="text" name="sel_google_client_id" value="<?php echo esc_attr(get_option('sel_google_client_id')); ?>" class="regular-text" />
+                        <p class="description">Enter your Google OAuth Client ID</p>
+                    </td>
+                </tr>
+                
+                <tr valign="top">
+                    <th scope="row">Google Client Secret</th>
+                    <td>
+                        <input type="text" name="sel_google_client_secret" value="<?php echo esc_attr(get_option('sel_google_client_secret')); ?>" class="regular-text" />
+                        <p class="description">Enter your Google OAuth Client Secret</p>
+                    </td>
+                </tr>
+            </table>
+            
+            <div class="card" style="max-width: 800px; margin-top: 20px;">
+                <h2>How to Get Google OAuth Credentials</h2>
+                <ol>
+                    <li>Go to <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+                    <li>Create a new project or select an existing one</li>
+                    <li>Enable the Google+ API</li>
+                    <li>Go to Credentials → Create Credentials → OAuth Client ID</li>
+                    <li>Select "Web application" as the application type</li>
+                    <li>Add authorized redirect URI: <code><?php echo home_url('/wp-admin/admin-ajax.php?action=sel_google_callback'); ?></code></li>
+                    <li>Copy the Client ID and Client Secret and paste them above</li>
+                </ol>
+            </div>
+            
+            <?php submit_button(); ?>
+        </form>
+    </div>
+    <?php
+}

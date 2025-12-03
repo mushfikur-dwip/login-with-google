@@ -2,13 +2,13 @@ jQuery(document).ready(function ($) {
   "use strict";
 
   // Handle login form submission
-  $("#lwg-email-login-form").on("submit", function (e) {
+  $("#sel-email-login-form").on("submit", function (e) {
     e.preventDefault();
 
     var $form = $(this);
     var $submitBtn = $form.find('button[type="submit"]');
-    var $message = $(".lwg-message");
-    var email = $("#lwg-email").val().trim();
+    var $message = $(".sel-message");
+    var email = $("#sel-email").val().trim();
 
     // Validate email
     if (!email || !isValidEmail(email)) {
@@ -22,12 +22,12 @@ jQuery(document).ready(function ($) {
 
     // Send AJAX request
     $.ajax({
-      url: lwg_ajax.ajax_url,
+      url: sel_ajax.ajax_url,
       type: "POST",
       data: {
-        action: "lwg_login",
+        action: "sel_login",
         email: email,
-        nonce: lwg_ajax.nonce,
+        nonce: sel_ajax.nonce,
       },
       success: function (response) {
         if (response.success) {
@@ -57,19 +57,19 @@ jQuery(document).ready(function ($) {
 
   // Show message function
   function showMessage(message, type) {
-    var $message = $(".lwg-message");
+    var $message = $(".sel-message");
     $message.removeClass("success error").addClass(type).text(message).fadeIn();
   }
 
   // Handle Create Account button click (optional)
-  $(".lwg-btn-secondary").on("click", function (e) {
+  $(".sel-btn-secondary").on("click", function (e) {
     e.preventDefault();
     // You can redirect to registration page or show a message
     alert("Account creation feature coming soon!");
   });
 
   // Handle Google Sign In button click (optional)
-  $(".lwg-btn-google").on("click", function (e) {
+  $(".sel-btn-google").on("click", function (e) {
     e.preventDefault();
     // You can add Google OAuth integration here
     alert("Google Sign In feature coming soon!");

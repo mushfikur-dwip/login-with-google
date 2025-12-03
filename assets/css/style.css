@@ -1,19 +1,19 @@
-/* Login with Google - Plugin Styles */
+/* Simple Email Login - Plugin Styles */
 
-.lwg-login-container {
+.sel-login-container {
   max-width: 560px;
   margin: 40px auto;
   padding: 20px;
 }
 
-.lwg-login-form {
+.sel-login-form {
   background: #ffffff;
   padding: 60px 80px;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.lwg-title {
+.sel-title {
   font-size: 24px;
   font-weight: 700;
   text-align: center;
@@ -22,11 +22,11 @@
   letter-spacing: 0.5px;
 }
 
-.lwg-form-group {
+.sel-form-group {
   margin-bottom: 12px;
 }
 
-.lwg-form-group label {
+.sel-form-group label {
   display: block;
   font-size: 14px;
   margin-bottom: 8px;
@@ -34,7 +34,7 @@
   font-weight: 400;
 }
 
-.lwg-form-group input[type="email"] {
+.sel-form-group input[type="email"] {
   width: 100%;
   padding: 14px 16px;
   font-size: 16px;
@@ -44,34 +44,34 @@
   transition: border-color 0.2s;
 }
 
-.lwg-form-group input[type="email"]:focus {
+.sel-form-group input[type="email"]:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.lwg-forgot-password {
+.sel-forgot-password {
   text-align: left;
   margin: 12px 0 30px 0;
 }
 
-.lwg-forgot-password a {
+.sel-forgot-password a {
   color: #333333;
   font-size: 14px;
   text-decoration: none;
 }
 
-.lwg-forgot-password a:hover {
+.sel-forgot-password a:hover {
   text-decoration: underline;
 }
 
-.lwg-button-group {
+.sel-button-group {
   display: flex;
   gap: 16px;
   margin-bottom: 30px;
 }
 
-.lwg-btn {
+.sel-btn {
   flex: 1;
   padding: 14px 24px;
   font-size: 16px;
@@ -83,41 +83,41 @@
   text-align: center;
 }
 
-.lwg-btn-secondary {
+.sel-btn-secondary {
   background: #ffffff;
   color: #333333;
   border: 2px solid #e5e7eb;
 }
 
-.lwg-btn-secondary:hover {
+.sel-btn-secondary:hover {
   background: #f9fafb;
   border-color: #d1d5db;
 }
 
-.lwg-btn-primary {
+.sel-btn-primary {
   background: #f97316;
   color: #ffffff;
   border: 2px solid #f97316;
 }
 
-.lwg-btn-primary:hover {
+.sel-btn-primary:hover {
   background: #ea580c;
   border-color: #ea580c;
 }
 
-.lwg-btn-primary:disabled {
+.sel-btn-primary:disabled {
   background: #fed7aa;
   border-color: #fed7aa;
   cursor: not-allowed;
 }
 
-.lwg-divider {
+.sel-divider {
   position: relative;
   text-align: center;
   margin: 30px 0;
 }
 
-.lwg-divider::before {
+.sel-divider::before {
   content: "";
   position: absolute;
   left: 0;
@@ -127,7 +127,7 @@
   background: #e5e7eb;
 }
 
-.lwg-divider span {
+.sel-divider span {
   position: relative;
   background: #ffffff;
   padding: 0 16px;
@@ -136,7 +136,7 @@
   font-weight: 500;
 }
 
-.lwg-btn-google {
+.sel-btn-google {
   width: 100%;
   padding: 14px 24px;
   background: #ffffff;
@@ -153,17 +153,17 @@
   transition: all 0.2s;
 }
 
-.lwg-btn-google:hover {
+.sel-btn-google:hover {
   background: #f9fafb;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.lwg-btn-google svg {
+.sel-btn-google svg {
   width: 20px;
   height: 20px;
 }
 
-.lwg-message {
+.sel-message {
   margin-top: 20px;
   padding: 12px;
   border-radius: 4px;
@@ -172,14 +172,14 @@
   display: none;
 }
 
-.lwg-message.success {
+.sel-message.success {
   background: #d1fae5;
   color: #065f46;
   border: 1px solid #6ee7b7;
   display: block;
 }
 
-.lwg-message.error {
+.sel-message.error {
   background: #fee2e2;
   color: #991b1b;
   border: 1px solid #fca5a5;
@@ -187,7 +187,7 @@
 }
 
 /* User Info Styles */
-.lwg-user-info {
+.sel-user-info {
   text-align: center;
   padding: 30px;
   background: #ffffff;
@@ -195,19 +195,19 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.lwg-welcome-message {
+.sel-welcome-message {
   font-size: 20px;
   font-weight: 600;
   color: #333333;
 }
 
 /* Loading State */
-.lwg-btn.loading {
+.sel-btn.loading {
   position: relative;
   color: transparent;
 }
 
-.lwg-btn.loading::after {
+.sel-btn.loading::after {
   content: "";
   position: absolute;
   width: 16px;
@@ -230,15 +230,15 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .lwg-login-form {
+  .sel-login-form {
     padding: 40px 30px;
   }
 
-  .lwg-button-group {
+  .sel-button-group {
     flex-direction: column;
   }
 
-  .lwg-title {
+  .sel-title {
     font-size: 20px;
   }
 }
