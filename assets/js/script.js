@@ -8,11 +8,18 @@ jQuery(document).ready(function ($) {
     var $form = $(this);
     var $submitBtn = $form.find('button[type="submit"]');
     var $message = $(".sel-message");
-    var email = $("#sel-email").val().trim();
+    var email = $("#sel-login-email").val().trim();
+    var password = $("#sel-login-password").val();
 
     // Validate email
     if (!email || !isValidEmail(email)) {
       showMessage("Please enter a valid email address.", "error");
+      return;
+    }
+
+    // Check if password field is visible and required
+    if ($("#sel-password-group").is(":visible") && !password) {
+      showMessage("Please enter your password.", "error");
       return;
     }
 
@@ -27,18 +34,31 @@ jQuery(document).ready(function ($) {
       data: {
         action: "sel_login",
         email: email,
+        password: password,
         nonce: sel_ajax.nonce,
       },
       success: function (response) {
         if (response.success) {
           showMessage(response.data.message, "success");
 
-          // Reload page after 1 second to show logged in state
+          // Redirect to my-account page
           setTimeout(function () {
-            location.reload();
+            window.location.href = response.data.redirect;
           }, 1000);
         } else {
-          showMessage(response.data.message, "error");
+          // If password is needed, show password field
+          if (response.data.needs_password) {
+            $("#sel-password-group").slideDown();
+            showMessage("Please enter your password to continue.", "error");
+          } else if (response.data.needs_signup) {
+            showMessage(response.data.message, "error");
+            // Auto switch to signup form after 2 seconds
+            setTimeout(function () {
+              $("#sel-show-signup").click();
+            }, 2000);
+          } else {
+            showMessage(response.data.message, "error");
+          }
           $submitBtn.prop("disabled", false).removeClass("loading");
         }
       },
@@ -49,6 +69,93 @@ jQuery(document).ready(function ($) {
     });
   });
 
+  // Handle signup form submission
+  $("#sel-signup-form").on("submit", function (e) {
+    e.preventDefault();
+
+    var $form = $(this);
+    var $submitBtn = $form.find('button[type="submit"]');
+    var $message = $("#sel-signup-form-container .sel-message");
+    var name = $("#sel-signup-name").val().trim();
+    var email = $("#sel-signup-email").val().trim();
+    var password = $("#sel-signup-password").val();
+
+    // Validate inputs
+    if (!name) {
+      showMessage("Please enter your name.", "error", $message);
+      return;
+    }
+
+    if (!email || !isValidEmail(email)) {
+      showMessage("Please enter a valid email address.", "error", $message);
+      return;
+    }
+
+    if (!password || password.length < 6) {
+      showMessage(
+        "Password must be at least 6 characters long.",
+        "error",
+        $message
+      );
+      return;
+    }
+
+    // Disable button and show loading state
+    $submitBtn.prop("disabled", true).addClass("loading");
+    $message.hide().removeClass("success error");
+
+    // Send AJAX request
+    $.ajax({
+      url: sel_ajax.ajax_url,
+      type: "POST",
+      data: {
+        action: "sel_signup",
+        name: name,
+        email: email,
+        password: password,
+        nonce: sel_ajax.nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          showMessage(response.data.message, "success", $message);
+
+          // Redirect to my-account page
+          setTimeout(function () {
+            window.location.href = response.data.redirect;
+          }, 1000);
+        } else {
+          showMessage(response.data.message, "error", $message);
+          $submitBtn.prop("disabled", false).removeClass("loading");
+        }
+      },
+      error: function () {
+        showMessage("An error occurred. Please try again.", "error", $message);
+        $submitBtn.prop("disabled", false).removeClass("loading");
+      },
+    });
+  });
+
+  // Toggle between login and signup forms
+  $("#sel-show-signup").on("click", function (e) {
+    e.preventDefault();
+    $("#sel-login-form-container").fadeOut(300, function () {
+      $("#sel-signup-form-container").fadeIn(300);
+    });
+    // Clear messages
+    $(".sel-message").hide().removeClass("success error").text("");
+  });
+
+  $("#sel-show-login").on("click", function (e) {
+    e.preventDefault();
+    $("#sel-signup-form-container").fadeOut(300, function () {
+      $("#sel-login-form-container").fadeIn(300);
+    });
+    // Clear messages and hide password field
+    $(".sel-message").hide().removeClass("success error").text("");
+    $("#sel-password-group").hide();
+    $("#sel-login-password").val("");
+  });
+
   // Email validation function
   function isValidEmail(email) {
     var regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,22 +163,20 @@ jQuery(document).ready(function ($) {
   }
 
   // Show message function
-  function showMessage(message, type) {
-    var $message = $(".sel-message");
-    $message.removeClass("success error").addClass(type).text(message).fadeIn();
+  function showMessage(message, type, $element) {
+    var $msg = $element || $(".sel-message");
+    $msg.removeClass("success error").addClass(type).text(message).fadeIn();
   }
 
-  // Handle Create Account button click (optional)
-  $(".sel-btn-secondary").on("click", function (e) {
-    e.preventDefault();
-    // You can redirect to registration page or show a message
-    alert("Account creation feature coming soon!");
-  });
-
   // Handle Google Sign In button click (optional)
-  $(".sel-btn-google").on("click", function (e) {
+  $("#sel-google-login").on("click", function (e) {
     e.preventDefault();
     // You can add Google OAuth integration here
-    alert("Google Sign In feature coming soon!");
+    if (sel_ajax.google_enabled === "1" && sel_ajax.google_client_id) {
+      // Implement Google OAuth flow
+      alert("Google Sign In integration coming soon!");
+    } else {
+      alert("Google Sign In is not configured. Please contact administrator.");
+    }
   });
 });

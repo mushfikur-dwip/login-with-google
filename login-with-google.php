@@ -67,6 +67,7 @@ function sel_handle_login() {
     check_ajax_referer('sel_login_nonce', 'nonce');
     
     $email = sanitize_email($_POST['email']);
+    $password = isset($_POST['password']) ? $_POST['password'] : '';
     
     // Validate email
     if (!is_email($email)) {
@@ -76,46 +77,105 @@ function sel_handle_login() {
     // Check if user exists
     $user = get_user_by('email', $email);
     
-    // If user doesn't exist, create new user
     if (!$user) {
-        $username = sanitize_user(current(explode('@', $email)));
-        $random_password = wp_generate_password(12, true, true);
-        
-        // Make username unique if it already exists
-        $base_username = $username;
-        $counter = 1;
-        while (username_exists($username)) {
-            $username = $base_username . $counter;
-            $counter++;
-        }
-        
-        $user_id = wp_create_user($username, $random_password, $email);
-        
-        if (is_wp_error($user_id)) {
-            wp_send_json_error(array('message' => 'Failed to create user account.'));
-        }
-        
-        // Set display name as email username part
-        wp_update_user(array(
-            'ID' => $user_id,
-            'display_name' => ucfirst($base_username)
+        wp_send_json_error(array(
+            'message' => 'No account found with this email. Please sign up first.',
+            'needs_signup' => true
         ));
-        
-        $user = get_user_by('id', $user_id);
     }
     
-    // Log the user in
-    wp_clear_auth_cookie();
-    wp_set_current_user($user->ID);
-    wp_set_auth_cookie($user->ID);
+    // Check if user has password (not a Google-only user)
+    // Try to authenticate with password
+    $credentials = array(
+        'user_login'    => $user->user_login,
+        'user_password' => $password,
+        'remember'      => true
+    );
+    
+    $login_user = wp_signon($credentials, false);
+    
+    if (is_wp_error($login_user)) {
+        wp_send_json_error(array('message' => 'Incorrect password. Please try again.'));
+    }
     
     wp_send_json_success(array(
         'message' => 'Login successful!',
-        'user_name' => $user->display_name
+        'user_name' => $login_user->display_name,
+        'redirect' => 'https://rideonbd.com/my-account/'
     ));
 }
 add_action('wp_ajax_nopriv_sel_login', 'sel_handle_login');
 add_action('wp_ajax_sel_login', 'sel_handle_login');
+
+/**
+ * Handle AJAX Signup Request
+ */
+function sel_handle_signup() {
+    // Verify nonce
+    check_ajax_referer('sel_login_nonce', 'nonce');
+    
+    $name = sanitize_text_field($_POST['name']);
+    $email = sanitize_email($_POST['email']);
+    $password = $_POST['password'];
+    
+    // Validate inputs
+    if (empty($name) || empty($email) || empty($password)) {
+        wp_send_json_error(array('message' => 'All fields are required.'));
+    }
+    
+    if (!is_email($email)) {
+        wp_send_json_error(array('message' => 'Please enter a valid email address.'));
+    }
+    
+    if (strlen($password) < 6) {
+        wp_send_json_error(array('message' => 'Password must be at least 6 characters long.'));
+    }
+    
+    // Check if email already exists
+    if (email_exists($email)) {
+        wp_send_json_error(array('message' => 'This email is already registered. Please login instead.'));
+    }
+    
+    // Create username from name or email
+    $username = sanitize_user(strtolower(str_replace(' ', '', $name)));
+    if (empty($username)) {
+        $username = sanitize_user(current(explode('@', $email)));
+    }
+    
+    // Make username unique if it already exists
+    $base_username = $username;
+    $counter = 1;
+    while (username_exists($username)) {
+        $username = $base_username . $counter;
+        $counter++;
+    }
+    
+    // Create new user
+    $user_id = wp_create_user($username, $password, $email);
+    
+    if (is_wp_error($user_id)) {
+        wp_send_json_error(array('message' => 'Failed to create account. Please try again.'));
+    }
+    
+    // Update user display name
+    wp_update_user(array(
+        'ID' => $user_id,
+        'display_name' => $name,
+        'first_name' => $name
+    ));
+    
+    // Log the user in
+    wp_set_current_user($user_id);
+    wp_set_auth_cookie($user_id);
+    
+    wp_send_json_success(array(
+        'message' => 'Account created successfully!',
+        'user_name' => $name,
+        'redirect' => 'https://rideonbd.com/my-account/'
+    ));
+}
+add_action('wp_ajax_nopriv_sel_signup', 'sel_handle_signup');
+add_action('wp_ajax_sel_signup', 'sel_handle_signup');
 
 /**
  * Shortcode to display login form or user name
@@ -132,22 +192,27 @@ function sel_login_shortcode() {
         </div>
         <?php
     } else {
-        // User is not logged in - show login form
+        // User is not logged in - show login/signup forms
         $google_enabled = get_option('sel_google_enabled', '0');
         ?>
         <div class="sel-login-container">
-            <div class="sel-login-form">
+            <!-- Login Form -->
+            <div class="sel-login-form" id="sel-login-form-container">
                 <h2 class="sel-title">I ALREADY HAVE AN ACCOUNT</h2>
                 <form id="sel-email-login-form">
                     <div class="sel-form-group">
-                        <label for="sel-email">Please enter your phone number or email</label>
-                        <input type="email" id="sel-email" name="email" required placeholder="">
+                        <label for="sel-login-email">Email Address</label>
+                        <input type="email" id="sel-login-email" name="email" required placeholder="">
+                    </div>
+                    <div class="sel-form-group" id="sel-password-group" style="display:none;">
+                        <label for="sel-login-password">Password</label>
+                        <input type="password" id="sel-login-password" name="password" placeholder="">
                     </div>
                     <div class="sel-forgot-password">
                         <a href="<?php echo wp_lostpassword_url(); ?>">Forgot password?</a>
                     </div>
                     <div class="sel-button-group">
-                        <button type="button" class="sel-btn sel-btn-secondary">Create Account</button>
+                        <button type="button" class="sel-btn sel-btn-secondary" id="sel-show-signup">Create Account</button>
                         <button type="submit" class="sel-btn sel-btn-primary">Next</button>
                     </div>
                     <?php if ($google_enabled === '1') : ?>
@@ -167,6 +232,30 @@ function sel_login_shortcode() {
                 </form>
                 <div class="sel-message"></div>
             </div>
+
+            <!-- Signup Form (Hidden by default) -->
+            <div class="sel-login-form" id="sel-signup-form-container" style="display:none;">
+                <h2 class="sel-title">CREATE NEW ACCOUNT</h2>
+                <form id="sel-signup-form">
+                    <div class="sel-form-group">
+                        <label for="sel-signup-name">Full Name</label>
+                        <input type="text" id="sel-signup-name" name="name" required placeholder="">
+                    </div>
+                    <div class="sel-form-group">
+                        <label for="sel-signup-email">Email Address</label>
+                        <input type="email" id="sel-signup-email" name="email" required placeholder="">
+                    </div>
+                    <div class="sel-form-group">
+                        <label for="sel-signup-password">Password</label>
+                        <input type="password" id="sel-signup-password" name="password" required placeholder="">
+                    </div>
+                    <div class="sel-button-group">
+                        <button type="button" class="sel-btn sel-btn-secondary" id="sel-show-login">Back to Login</button>
+                        <button type="submit" class="sel-btn sel-btn-primary">Sign Up</button>
+                    </div>
+                </form>
+                <div class="sel-message"></div>
+            </div>
         </div>
         <?php
     }
@@ -174,6 +263,35 @@ function sel_login_shortcode() {
     return ob_get_clean();
 }
 add_shortcode('simple_email_login', 'sel_login_shortcode');
+
+/**
+ * Header shortcode - Shows Login button or Username
+ */
+function sel_header_shortcode() {
+    ob_start();
+    
+    if (is_user_logged_in()) {
+        $current_user = wp_get_current_user();
+        ?>
+        <div class="sel-header-user">
+            <a href="https://rideonbd.com/my-account/" class="sel-header-link">
+                <?php echo esc_html($current_user->display_name); ?>
+            </a>
+        </div>
+        <?php
+    } else {
+        // Get current page URL or default to login page
+        $login_page = home_url('/login/'); // Adjust this to your login page URL
+        ?>
+        <div class="sel-header-login">
+            <a href="<?php echo esc_url($login_page); ?>" class="sel-header-link">Login</a>
+        </div>
+        <?php
+    }
+    
+    return ob_get_clean();
+}
+add_shortcode('sel_header', 'sel_header_shortcode');
 
 /**
  * Add admin menu

@@ -219,10 +219,10 @@
   border: 2px solid #ffffff;
   border-radius: 50%;
   border-top-color: transparent;
-  animation: lwg-spinner 0.6s linear infinite;
+  animation: sel-spinner 0.6s linear infinite;
 }
 
-@keyframes lwg-spinner {
+@keyframes sel-spinner {
   to {
     transform: rotate(360deg);
   }
@@ -241,4 +241,38 @@
   .sel-title {
     font-size: 20px;
   }
+}
+
+/* Header Shortcode Styles */
+.sel-header-user,
+.sel-header-login {
+  display: inline-block;
+}
+
+.sel-header-link {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333333;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.sel-header-link:hover {
+  background: #f3f4f6;
+  color: #f97316;
+}
+
+.sel-header-login .sel-header-link {
+  background: #f97316;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-weight: 600;
+}
+
+.sel-header-login .sel-header-link:hover {
+  background: #ea580c;
+  color: #ffffff;
 }
