@@ -168,9 +168,15 @@ jQuery(document).ready(function ($) {
     $msg.removeClass("success error").addClass(type).text(message).fadeIn();
   }
 
-  // Handle Google Sign In button click
-  $("#sel-google-login").on("click", function (e) {
+  // Handle Google Sign In button click (using event delegation)
+  $(document).on("click", "#sel-google-login", function (e) {
     e.preventDefault();
+
+    // Check if sel_ajax is defined
+    if (typeof sel_ajax === "undefined") {
+      alert("Configuration error. Please refresh the page.");
+      return;
+    }
 
     if (sel_ajax.google_enabled === "1" && sel_ajax.google_client_id) {
       // Build Google OAuth URL
@@ -194,7 +200,19 @@ jQuery(document).ready(function ($) {
       // Redirect to Google OAuth
       window.location.href = google_auth_url;
     } else {
-      alert("Google Sign In is not configured. Please contact administrator.");
+      if (!sel_ajax.google_client_id || sel_ajax.google_client_id === "") {
+        alert(
+          "Google Client ID is missing. Please configure it in Settings → Simple Email Login."
+        );
+      } else if (sel_ajax.google_enabled !== "1") {
+        alert(
+          "Google Sign In is disabled. Please enable it in Settings → Simple Email Login."
+        );
+      } else {
+        alert(
+          "Google Sign In is not configured. Please contact administrator."
+        );
+      }
     }
   });
 });
