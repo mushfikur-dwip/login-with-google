@@ -49,12 +49,18 @@ function sel_enqueue_scripts() {
     wp_enqueue_style('sel-styles', SEL_PLUGIN_URL . 'assets/css/style.css', array(), SEL_VERSION);
     wp_enqueue_script('sel-script', SEL_PLUGIN_URL . 'assets/js/script.js', array('jquery'), SEL_VERSION, true);
     
+    // Load Google One Tap library if enabled and user is not logged in
+    if (get_option('sel_google_enabled') === '1' && !is_user_logged_in()) {
+        wp_enqueue_script('google-one-tap', 'https://accounts.google.com/gsi/client', array(), null, true);
+    }
+    
     // Localize script for AJAX
     wp_localize_script('sel-script', 'sel_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('sel_login_nonce'),
         'google_enabled' => get_option('sel_google_enabled', '0'),
-        'google_client_id' => get_option('sel_google_client_id', '')
+        'google_client_id' => get_option('sel_google_client_id', ''),
+        'is_logged_in' => is_user_logged_in()
     ));
 }
 add_action('wp_enqueue_scripts', 'sel_enqueue_scripts');
@@ -291,6 +297,91 @@ function sel_handle_google_callback() {
 }
 add_action('wp_ajax_nopriv_sel_google_callback', 'sel_handle_google_callback');
 add_action('wp_ajax_sel_google_callback', 'sel_handle_google_callback');
+
+/**
+ * Handle Google One Tap Login
+ */
+function sel_handle_google_one_tap() {
+    // Verify nonce
+    check_ajax_referer('sel_login_nonce', 'nonce');
+    
+    if (!isset($_POST['credential'])) {
+        wp_send_json_error(array('message' => 'Invalid credential'));
+    }
+    
+    $credential = sanitize_text_field($_POST['credential']);
+    $client_id = get_option('sel_google_client_id');
+    
+    // Verify the JWT token with Google
+    $verify_url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . $credential;
+    $response = wp_remote_get($verify_url);
+    
+    if (is_wp_error($response)) {
+        wp_send_json_error(array('message' => 'Failed to verify credential'));
+    }
+    
+    $userinfo = json_decode(wp_remote_retrieve_body($response), true);
+    
+    // Check if token is valid
+    if (!isset($userinfo['email']) || $userinfo['aud'] !== $client_id) {
+        wp_send_json_error(array('message' => 'Invalid token'));
+    }
+    
+    // Check if user exists
+    $user = get_user_by('email', $userinfo['email']);
+    
+    if (!$user) {
+        // Create new user
+        $username = sanitize_user(current(explode('@', $userinfo['email'])));
+        $random_password = wp_generate_password(20, true, true);
+        
+        // Make username unique
+        $base_username = $username;
+        $counter = 1;
+        while (username_exists($username)) {
+            $username = $base_username . $counter;
+            $counter++;
+        }
+        
+        $user_id = wp_create_user($username, $random_password, $userinfo['email']);
+        
+        if (is_wp_error($user_id)) {
+            wp_send_json_error(array('message' => 'Failed to create user account'));
+        }
+        
+        // Update user with Google info
+        $display_name = isset($userinfo['name']) ? $userinfo['name'] : $username;
+        wp_update_user(array(
+            'ID' => $user_id,
+            'display_name' => $display_name,
+            'first_name' => isset($userinfo['given_name']) ? $userinfo['given_name'] : '',
+            'last_name' => isset($userinfo['family_name']) ? $userinfo['family_name'] : ''
+        ));
+        
+        // Store Google ID
+        if (isset($userinfo['sub'])) {
+            update_user_meta($user_id, 'google_id', $userinfo['sub']);
+        }
+        
+        if (isset($userinfo['picture'])) {
+            update_user_meta($user_id, 'google_picture', $userinfo['picture']);
+        }
+        
+        $user = get_user_by('id', $user_id);
+    }
+    
+    // Log the user in
+    wp_clear_auth_cookie();
+    wp_set_current_user($user->ID);
+    wp_set_auth_cookie($user->ID, true);
+    
+    wp_send_json_success(array(
+        'message' => 'Login successful!',
+        'redirect' => 'https://rideonbd.com/my-account/'
+    ));
+}
+add_action('wp_ajax_nopriv_sel_google_one_tap', 'sel_handle_google_one_tap');
+add_action('wp_ajax_sel_google_one_tap', 'sel_handle_google_one_tap');
 
 /**
  * Shortcode to display login form or user name

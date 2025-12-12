@@ -215,4 +215,62 @@ jQuery(document).ready(function ($) {
       }
     }
   });
+
+  // Initialize Google One Tap
+  function initializeGoogleOneTap() {
+    if (
+      typeof sel_ajax !== "undefined" &&
+      sel_ajax.google_enabled === "1" &&
+      sel_ajax.google_client_id &&
+      !sel_ajax.is_logged_in &&
+      typeof google !== "undefined"
+    ) {
+      google.accounts.id.initialize({
+        client_id: sel_ajax.google_client_id,
+        callback: handleGoogleOneTapResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      // Display the One Tap prompt
+      google.accounts.id.prompt();
+    }
+  }
+
+  // Handle Google One Tap response
+  function handleGoogleOneTapResponse(response) {
+    if (response.credential) {
+      // Send credential to server
+      $.ajax({
+        url: sel_ajax.ajax_url,
+        type: "POST",
+        data: {
+          action: "sel_google_one_tap",
+          credential: response.credential,
+          nonce: sel_ajax.nonce,
+        },
+        success: function (result) {
+          if (result.success) {
+            // Redirect to my-account page
+            window.location.href = result.data.redirect;
+          } else {
+            console.error("Login failed:", result.data.message);
+          }
+        },
+        error: function () {
+          console.error("An error occurred during Google One Tap login");
+        },
+      });
+    }
+  }
+
+  // Initialize Google One Tap when page loads
+  if (typeof google !== "undefined") {
+    initializeGoogleOneTap();
+  } else {
+    // Wait for Google library to load
+    window.addEventListener("load", function () {
+      setTimeout(initializeGoogleOneTap, 500);
+    });
+  }
 });
